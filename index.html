@@ -20,7 +20,6 @@ color:#fff;
 overflow:hidden;
 }
 
-/* LOGIN */
 #login{
 padding:20px;
 display:flex;
@@ -41,16 +40,13 @@ color:#fff;
 cursor:pointer;
 }
 
-/* APP */
 #app{display:none}
 
-/* LAYOUT */
 #container{
 display:flex;
 height:100vh;
 }
 
-/* LEFT PANEL */
 #left{
 width:40%;
 display:flex;
@@ -58,14 +54,12 @@ flex-direction:column;
 background:#111;
 }
 
-/* SEARCH */
 #search{
 margin:10px;
 padding:10px;
 border-radius:8px;
 }
 
-/* FILTERS */
 #filters{
 display:flex;
 flex-wrap:wrap;
@@ -83,7 +77,6 @@ font-size:13px;
 
 .active{background:#2196f3}
 
-/* GRID */
 #list{
 flex:1;
 overflow-y:auto;
@@ -98,20 +91,14 @@ background:#1c1c1c;
 padding:15px;
 border-radius:12px;
 cursor:pointer;
+min-height:80px;
 display:flex;
 flex-direction:column;
-min-height:80px;
-transition:0.2s;
-outline:none;
-}
-
-.item:hover{
-transform:scale(1.03);
+justify-content:center;
 }
 
 .item.focused{
 background:#2196f3;
-transform:scale(1.05);
 }
 
 .star{
@@ -119,7 +106,6 @@ color:gold;
 margin-top:8px;
 }
 
-/* RIGHT PLAYER */
 #right{
 flex:1;
 background:black;
@@ -130,7 +116,6 @@ width:100%;
 height:100%;
 }
 
-/* MOBILE */
 @media(max-width:900px){
 #container{flex-direction:column}
 #left{width:100%;height:55%}
@@ -144,7 +129,7 @@ height:100%;
 
 <!-- LOGIN -->
 <div id="login">
-<h2>IPTV TV OS LOGIN</h2>
+<h2>IPTV LOGIN</h2>
 <input id="email" placeholder="Email">
 <input id="pass" type="password" placeholder="Password">
 <button onclick="login()">Login</button>
@@ -156,13 +141,9 @@ height:100%;
 <div id="container">
 
 <div id="left">
-
-<input id="search" placeholder="Search channels..." onkeyup="render()">
-
+<input id="search" placeholder="Search..." onkeyup="render()">
 <div id="filters"></div>
-
 <div id="list"></div>
-
 </div>
 
 <div id="right">
@@ -175,7 +156,7 @@ height:100%;
 
 <script>
 
-// ---------------- FIREBASE ----------------
+// FIREBASE
 const firebaseConfig = {
 apiKey: "AIzaSyA-qZC85X9Jc6Qthl3HCw6N6pGu_ZxfsFg",
 authDomain: "iptv-master-ott.firebaseapp.com",
@@ -190,239 +171,138 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-let user=null;
-let channels=[];
-let filter="ALL";
-let favorites=[];
-let lastWatched=null;
-let focusIndex=0;
+let user = null;
+let channels = [];
+let filter = "ALL";
+let favorites = [];
+let focusIndex = 0;
 
-// ---------------- CDN BACKUP ----------------
-const PLAYLIST_SOURCES = [
-"https://cdn.jsdelivr.net/gh/nayeemhossainbd/IPTV-MASTER-OTT@main/channels.m3u",
-"https://raw.githubusercontent.com/nayeemhossainbd/IPTV-MASTER-OTT/main/channels.m3u",
-"https://nayeemhossainbd.github.io/IPTV-MASTER-OTT/channels.m3u"
-];
+// PLAYLIST CDN (stable)
+const PLAYLIST_URL = "https://cdn.jsdelivr.net/gh/nayeemhossainbd/IPTV-MASTER-OTT@main/channels.m3u";
 
 // ---------------- LOGIN ----------------
 function login(){
-auth.signInWithEmailAndPassword(email.value,pass.value)
-.then(u=>{
-user=u.user.uid;
-login.style.display="none";
-app.style.display="block";
+
+const email = document.getElementById("email").value;
+const pass = document.getElementById("pass").value;
+
+auth.signInWithEmailAndPassword(email, pass)
+.then(u => {
+
+user = u.user.uid;
+
+document.getElementById("login").style.display = "none";
+document.getElementById("app").style.display = "block";
+
 load();
+
+})
+.catch(e => {
+alert(e.code + "\n" + e.message);
 });
+
 }
 
-// ---------------- SMART LOAD ----------------
+// ---------------- LOAD ----------------
 async function load(){
 
-let text=null;
-
-for(let url of PLAYLIST_SOURCES){
 try{
-let res=await fetch(url,{cache:"no-store"});
-if(res.ok){
-text=await res.text();
-console.log("Loaded:",url);
-break;
-}
+let res = await fetch(PLAYLIST_URL);
+let text = await res.text();
+channels = parseM3U(text);
 }catch(e){
-console.log("Failed:",url);
-}
-}
-
-if(!text){
-alert("Playlist failed to load");
+alert("Playlist error");
 return;
 }
-
-channels=parseM3U(text);
-
-await loadUser();
 
 buildFilters();
 render();
 
-if(lastWatched){
-let c=channels.find(x=>x.name==lastWatched);
-if(c) play(c);
-}else play(channels[0]);
+play(channels[0]);
 
 }
 
 // ---------------- PARSE M3U ----------------
 function parseM3U(data){
-let lines=data.split("\n");
-let arr=[];
-let name="",group="General";
+let lines = data.split("\n");
+let arr = [];
+let name="", group="General";
 
 for(let l of lines){
-l=l.trim();
+l = l.trim();
 
 if(l.startsWith("#EXTINF")){
-name=l.split(",")[1]||"Unknown";
-let g=l.match(/group-title="(.*?)"/);
-group=g?g[1]:"General";
+name = l.split(",")[1] || "Unknown";
+let g = l.match(/group-title="(.*?)"/);
+group = g ? g[1] : "General";
 }
 else if(l && !l.startsWith("#")){
-arr.push({name,group,url:l});
+arr.push({name, group, url:l});
 }
 }
+
 return arr;
 }
 
-// ---------------- USER LOAD ----------------
-async function loadUser(){
-if(!user)return;
-
-let doc=await db.collection("users").doc(user).get();
-
-if(doc.exists){
-favorites=doc.data().favorites||[];
-lastWatched=doc.data().lastWatched||null;
-}
-}
-
-// ---------------- SAVE ----------------
-function save(){
-if(!user)return;
-
-db.collection("users").doc(user).set({
-favorites,
-lastWatched
-},{merge:true});
-}
-
-// ---------------- PLAY ----------------
-function play(c){
-if(Hls.isSupported()){
-let h=new Hls();
-h.loadSource(c.url);
-h.attachMedia(video);
-}else video.src=c.url;
-
-lastWatched=c.name;
-save();
-}
-
-// ---------------- FAVORITE ----------------
-function toggleFav(name){
-if(favorites.includes(name)){
-favorites=favorites.filter(x=>x!=name);
-}else{
-favorites.push(name);
-}
-save();
-render();
-}
-
-// ---------------- FILTERS ----------------
+// ---------------- UI ----------------
 function buildFilters(){
+let f = ["ALL", ...new Set(channels.map(c=>c.group))];
 
-let f=["ALL","FAV",...new Set(channels.map(c=>c.group))];
-
-filters.innerHTML="";
+filters.innerHTML = "";
 
 f.forEach(x=>{
-let d=document.createElement("div");
-d.className="tag"+(filter==x?" active":"");
-d.innerText=x;
+let d = document.createElement("div");
+d.className = "tag" + (filter==x?" active":"");
+d.innerText = x;
 
-d.onclick=()=>{
-filter=x;
+d.onclick = ()=>{
+filter = x;
 buildFilters();
 render();
 };
 
 filters.appendChild(d);
 });
-
 }
 
 // ---------------- RENDER ----------------
 function render(){
 
-list.innerHTML="";
+list.innerHTML = "";
 
-let s=search.value.toLowerCase();
+let s = document.getElementById("search").value.toLowerCase();
 
-let filtered=channels.filter(c=>{
-if(filter=="FAV") return favorites.includes(c.name);
-return (filter=="ALL"||c.group==filter)&&c.name.toLowerCase().includes(s);
-});
+channels
+.filter(c => (filter=="ALL" || c.group==filter) && c.name.toLowerCase().includes(s))
+.forEach((c,i)=>{
 
-filtered.forEach((c,i)=>{
-let div=document.createElement("div");
-div.className="item";
-div.tabIndex=i;
+let div = document.createElement("div");
+div.className = "item";
 
-let fav=favorites.includes(c.name);
-
-div.innerHTML=`
-<div><b>${c.name}</b></div>
+div.innerHTML = `
+<b>${c.name}</b>
 <div style="font-size:12px;opacity:0.7">${c.group}</div>
-<div class="star">${fav?"★":"☆"}</div>
 `;
 
-div.onclick=()=>play(c);
-
-div.querySelector(".star").onclick=(e)=>{
-e.stopPropagation();
-toggleFav(c.name);
-};
+div.onclick = ()=> play(c);
 
 list.appendChild(div);
-});
-
-focusIndex=0;
-updateFocus();
-
-}
-
-// ---------------- TV NAV ----------------
-document.addEventListener("keydown",(e)=>{
-
-let items=[...document.querySelectorAll(".item")];
-
-let cols = window.innerWidth < 900 ? 2 : 3;
-
-if(e.key=="ArrowDown"){
-focusIndex=Math.min(focusIndex+cols,items.length-1);
-updateFocus();
-}
-
-if(e.key=="ArrowUp"){
-focusIndex=Math.max(focusIndex-cols,0);
-updateFocus();
-}
-
-if(e.key=="ArrowRight"){
-focusIndex=Math.min(focusIndex+1,items.length-1);
-updateFocus();
-}
-
-if(e.key=="ArrowLeft"){
-focusIndex=Math.max(focusIndex-1,0);
-updateFocus();
-}
-
-if(e.key=="Enter"){
-items[focusIndex]?.click();
-}
 
 });
 
-function updateFocus(){
-let items=[...document.querySelectorAll(".item")];
-
-items.forEach(x=>x.classList.remove("focused"));
-
-if(items[focusIndex]){
-items[focusIndex].classList.add("focused");
-items[focusIndex].scrollIntoView({behavior:"smooth",block:"center"});
 }
+
+// ---------------- PLAY ----------------
+function play(c){
+
+if(Hls.isSupported()){
+let h = new Hls();
+h.loadSource(c.url);
+h.attachMedia(video);
+}else{
+video.src = c.url;
+}
+
 }
 
 </script>
