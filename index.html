@@ -3,87 +3,27 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PlayZ TV</title>
+<title>OTT Home</title>
 
 <style>
-body{
-  margin:0;
-  background:#111;
-  color:#fff;
-  font-family:Arial;
-}
+body{margin:0;font-family:Arial;background:#111;color:#fff}
 
-/* Header */
+/* header */
 header{
-  position:sticky;
-  top:0;
-  background:#000;
-  padding:12px;
-  display:flex;
-  gap:10px;
-  z-index:10;
+  position:sticky;top:0;background:#000;padding:10px;
+  display:flex;gap:10px;
 }
-input{
-  flex:1;
-  padding:10px;
-  border:none;
-  border-radius:6px;
-}
+input{flex:1;padding:10px;border:none;border-radius:6px}
 
-/* Category bar */
-#cats{
-  display:flex;
-  overflow-x:auto;
-  background:#181818;
-  padding:8px;
-}
-.cat{
-  padding:6px 12px;
-  background:#333;
-  margin-right:8px;
-  border-radius:20px;
-  white-space:nowrap;
-  cursor:pointer;
-  font-size:13px;
-}
+/* category */
+#cats{display:flex;overflow-x:auto;background:#1a1a1a;padding:8px}
+.cat{padding:6px 12px;background:#333;margin-right:8px;border-radius:20px;cursor:pointer;white-space:nowrap}
 
-/* Section */
-.section{
-  margin:10px 0;
-}
-.section h2{
-  font-size:14px;
-  margin:10px;
-  color:#aaa;
-}
-
-/* Horizontal scroll like Netflix */
-.row{
-  display:flex;
-  overflow-x:auto;
-  padding:10px;
-  gap:10px;
-}
-
-.card{
-  min-width:140px;
-  background:#222;
-  border-radius:10px;
-  padding:8px;
-  cursor:pointer;
-  flex-shrink:0;
-}
-
-.card img{
-  width:100%;
-  height:70px;
-  object-fit:contain;
-}
-
-.card p{
-  font-size:12px;
-  margin:6px 0 0;
-}
+/* grid */
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:10px}
+.card{background:#222;padding:8px;border-radius:10px;cursor:pointer}
+.card img{width:100%;height:70px;object-fit:contain;background:#000}
+.card p{font-size:12px;margin:6px 0 0}
 </style>
 </head>
 
@@ -97,93 +37,79 @@ input{
 <div id="content"></div>
 
 <script>
-const playlistURL =
+const M3U_URL =
 "https://cdn.jsdelivr.net/gh/nayeemhossainbd/IPTV-MASTER-OTT@main/channels.m3u";
 
 let channels = [];
 
-/* Load M3U */
-fetch(playlistURL)
+/* LOAD M3U */
+fetch(M3U_URL)
 .then(r=>r.text())
 .then(t=>{
   channels = parseM3U(t);
-  buildUI();
+  renderCategories();
+  render(channels);
 });
 
-/* Parse M3U */
-function parseM3U(t){
-  let lines = t.split("\n");
+/* PARSER */
+function parseM3U(data){
+  const lines = data.split("\n");
   let arr = [];
 
   for(let i=0;i<lines.length;i++){
     if(lines[i].includes("#EXTINF")){
-      let name = lines[i].split(",")[1] || "Unknown";
-      let group = (lines[i].match(/group-title="(.*?)"/)||[])[1] || "Other";
-      let logo = (lines[i].match(/tvg-logo="(.*?)"/)||[])[1] || "";
-      let url = lines[i+1] || "";
+      const name = lines[i].split(",")[1] || "Unknown";
+      const group = (lines[i].match(/group-title="(.*?)"/)||[])[1] || "Other";
+      const logo = (lines[i].match(/tvg-logo="(.*?)"/)||[])[1] || "";
+      const url = lines[i+1] || "";
 
-      arr.push({name,group,logo,url});
+      if(url.startsWith("http")){
+        arr.push({name,group,logo,url});
+      }
     }
   }
   return arr;
 }
 
-/* Build full UI */
-function buildUI(){
-  renderCategories();
-  renderAllSections(channels);
-}
-
-/* Categories */
+/* CATEGORIES */
 function renderCategories(){
-  let groups = [...new Set(channels.map(c=>c.group))];
+  const groups = [...new Set(channels.map(c=>c.group))];
 
   document.getElementById("cats").innerHTML =
-    `<div class="cat" onclick="renderAllSections(channels)">All</div>` +
+    `<div class="cat" onclick="render(channels)">ALL</div>` +
     groups.map(g=>`
-      <div class="cat" onclick="filterGroup('${g}')">${g}</div>
+      <div class="cat" onclick="filterCat('${g}')">${g}</div>
     `).join("");
 }
 
-/* Netflix style rows */
-function renderAllSections(list){
-  let groups = [...new Set(list.map(c=>c.group))];
-  let html = "";
+function filterCat(g){
+  render(channels.filter(c=>c.group===g));
+}
 
-  groups.forEach(g=>{
-    let items = list.filter(c=>c.group===g);
+/* RENDER */
+function render(list){
+  let html = `<div class="grid">`;
 
+  list.forEach(c=>{
     html += `
-      <div class="section">
-        <h2>${g}</h2>
-        <div class="row">
-          ${items.map(c=>`
-            <div class="card" onclick="openPlayer('${encodeURIComponent(c.url)}')">
-              <img src="${c.logo}">
-              <p>${c.name}</p>
-            </div>
-          `).join("")}
-        </div>
+      <div class="card" onclick="openPlayer('${encodeURIComponent(c.url)}')">
+        <img src="${c.logo}">
+        <p>${c.name}</p>
       </div>
     `;
   });
 
+  html += `</div>`;
   document.getElementById("content").innerHTML = html;
 }
 
-/* Filter category */
-function filterGroup(g){
-  renderAllSections(channels.filter(c=>c.group===g));
-}
-
-/* Search */
-document.getElementById("search").addEventListener("input", e=>{
-  let v = e.target.value.toLowerCase();
-  let filtered = channels.filter(c=>c.name.toLowerCase().includes(v));
-  renderAllSections(filtered);
+/* SEARCH */
+document.getElementById("search").addEventListener("input",e=>{
+  const v = e.target.value.toLowerCase();
+  render(channels.filter(c=>c.name.toLowerCase().includes(v)));
 });
 
-/* Open player */
+/* OPEN PLAYER */
 function openPlayer(url){
   location.href = "player.html?url="+url;
 }
