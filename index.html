@@ -1,242 +1,192 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>IPTV Netflix Style</title>
-
-<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<title>PlayZ TV</title>
 
 <style>
 body{
-margin:0;
-font-family:Arial;
-background:#000;
-color:#fff;
-overflow:hidden;
+  margin:0;
+  background:#111;
+  color:#fff;
+  font-family:Arial;
 }
 
-/* MAIN LAYOUT */
-#app{
-display:flex;
-height:100vh;
+/* Header */
+header{
+  position:sticky;
+  top:0;
+  background:#000;
+  padding:12px;
+  display:flex;
+  gap:10px;
+  z-index:10;
+}
+input{
+  flex:1;
+  padding:10px;
+  border:none;
+  border-radius:6px;
 }
 
-/* LEFT SIDEBAR */
-#sidebar{
-width:30%;
-background:#111;
-display:flex;
-flex-direction:column;
+/* Category bar */
+#cats{
+  display:flex;
+  overflow-x:auto;
+  background:#181818;
+  padding:8px;
+}
+.cat{
+  padding:6px 12px;
+  background:#333;
+  margin-right:8px;
+  border-radius:20px;
+  white-space:nowrap;
+  cursor:pointer;
+  font-size:13px;
 }
 
-#search{
-margin:10px;
-padding:10px;
-border:none;
-border-radius:6px;
+/* Section */
+.section{
+  margin:10px 0;
+}
+.section h2{
+  font-size:14px;
+  margin:10px;
+  color:#aaa;
 }
 
-/* CATEGORY ROWS */
-#categories{
-flex:1;
-overflow-y:auto;
-padding:10px;
-}
-
-.category{
-margin-bottom:25px;
-}
-
-.category h3{
-margin:10px 0;
-font-size:14px;
-color:#aaa;
-}
-
-/* HORIZONTAL SCROLL ROW */
+/* Horizontal scroll like Netflix */
 .row{
-display:flex;
-overflow-x:auto;
-gap:10px;
-padding-bottom:10px;
-scroll-behavior:smooth;
+  display:flex;
+  overflow-x:auto;
+  padding:10px;
+  gap:10px;
 }
 
 .card{
-min-width:140px;
-height:80px;
-background:#222;
-border-radius:10px;
-padding:10px;
-cursor:pointer;
-flex-shrink:0;
-transition:0.2s;
+  min-width:140px;
+  background:#222;
+  border-radius:10px;
+  padding:8px;
+  cursor:pointer;
+  flex-shrink:0;
 }
 
-.card:hover{
-transform:scale(1.05);
-background:#333;
+.card img{
+  width:100%;
+  height:70px;
+  object-fit:contain;
 }
 
-/* RIGHT PLAYER */
-#player{
-flex:1;
-background:black;
-position:relative;
-}
-
-video{
-width:100%;
-height:100%;
-}
-
-/* FOCUS STYLE (TV FEEL) */
-.focused{
-outline:2px solid red;
-transform:scale(1.1);
-}
-
-/* MOBILE */
-@media(max-width:900px){
-#app{flex-direction:column}
-#sidebar{width:100%;height:45%}
-#player{height:55%}
-.card{min-width:120px}
+.card p{
+  font-size:12px;
+  margin:6px 0 0;
 }
 </style>
 </head>
 
 <body>
 
-<div id="app">
+<header>
+  <input id="search" placeholder="Search channels...">
+</header>
 
-<!-- LEFT -->
-<div id="sidebar">
-
-<input id="search" placeholder="Search channels..." onkeyup="render()">
-
-<div id="categories"></div>
-
-</div>
-
-<!-- RIGHT -->
-<div id="player">
-<video id="video" controls autoplay playsinline></video>
-</div>
-
-</div>
+<div id="cats"></div>
+<div id="content"></div>
 
 <script>
-
-// CDN M3U
-const PLAYLIST_URL = "https://cdn.jsdelivr.net/gh/nayeemhossainbd/IPTV-MASTER-OTT@main/channels.m3u";
+const playlistURL =
+"https://cdn.jsdelivr.net/gh/nayeemhossainbd/IPTV-MASTER-OTT@main/channels.m3u";
 
 let channels = [];
 
-// LOAD
-async function load(){
-
-let res = await fetch(PLAYLIST_URL);
-let text = await res.text();
-
-channels = parseM3U(text);
-
-render();
-
-play(channels[0]);
-
-}
-
-load();
-
-// PARSE M3U
-function parseM3U(data){
-let lines = data.split("\n");
-let arr = [];
-let name="", group="Live TV";
-
-for(let l of lines){
-
-l = l.trim();
-
-if(l.startsWith("#EXTINF")){
-name = l.split(",")[1] || "Unknown";
-let g = l.match(/group-title="(.*?)"/);
-group = g ? g[1] : "Live TV";
-}
-
-else if(l && !l.startsWith("#")){
-arr.push({name, group, url:l});
-}
-
-}
-
-return arr;
-}
-
-// RENDER NETFLIX STYLE
-function render(){
-
-categories.innerHTML = "";
-
-let s = search.value.toLowerCase();
-
-let groups = {};
-
-channels.forEach(c=>{
-if(!c.name.toLowerCase().includes(s)) return;
-
-if(!groups[c.group]) groups[c.group]=[];
-groups[c.group].push(c);
+/* Load M3U */
+fetch(playlistURL)
+.then(r=>r.text())
+.then(t=>{
+  channels = parseM3U(t);
+  buildUI();
 });
 
-for(let g in groups){
+/* Parse M3U */
+function parseM3U(t){
+  let lines = t.split("\n");
+  let arr = [];
 
-let cat = document.createElement("div");
-cat.className="category";
+  for(let i=0;i<lines.length;i++){
+    if(lines[i].includes("#EXTINF")){
+      let name = lines[i].split(",")[1] || "Unknown";
+      let group = (lines[i].match(/group-title="(.*?)"/)||[])[1] || "Other";
+      let logo = (lines[i].match(/tvg-logo="(.*?)"/)||[])[1] || "";
+      let url = lines[i+1] || "";
 
-cat.innerHTML = `<h3>${g}</h3>`;
+      arr.push({name,group,logo,url});
+    }
+  }
+  return arr;
+}
 
-let row = document.createElement("div");
-row.className="row";
+/* Build full UI */
+function buildUI(){
+  renderCategories();
+  renderAllSections(channels);
+}
 
-groups[g].forEach(c=>{
+/* Categories */
+function renderCategories(){
+  let groups = [...new Set(channels.map(c=>c.group))];
 
-let card = document.createElement("div");
-card.className="card";
+  document.getElementById("cats").innerHTML =
+    `<div class="cat" onclick="renderAllSections(channels)">All</div>` +
+    groups.map(g=>`
+      <div class="cat" onclick="filterGroup('${g}')">${g}</div>
+    `).join("");
+}
 
-card.innerHTML = `
-<div style="font-weight:bold;font-size:13px">${c.name}</div>
-<div style="font-size:11px;opacity:0.6">${c.group}</div>
-`;
+/* Netflix style rows */
+function renderAllSections(list){
+  let groups = [...new Set(list.map(c=>c.group))];
+  let html = "";
 
-card.onclick = ()=> play(c);
+  groups.forEach(g=>{
+    let items = list.filter(c=>c.group===g);
 
-row.appendChild(card);
+    html += `
+      <div class="section">
+        <h2>${g}</h2>
+        <div class="row">
+          ${items.map(c=>`
+            <div class="card" onclick="openPlayer('${encodeURIComponent(c.url)}')">
+              <img src="${c.logo}">
+              <p>${c.name}</p>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    `;
+  });
 
+  document.getElementById("content").innerHTML = html;
+}
+
+/* Filter category */
+function filterGroup(g){
+  renderAllSections(channels.filter(c=>c.group===g));
+}
+
+/* Search */
+document.getElementById("search").addEventListener("input", e=>{
+  let v = e.target.value.toLowerCase();
+  let filtered = channels.filter(c=>c.name.toLowerCase().includes(v));
+  renderAllSections(filtered);
 });
 
-cat.appendChild(row);
-categories.appendChild(cat);
-
+/* Open player */
+function openPlayer(url){
+  location.href = "player.html?url="+url;
 }
-
-}
-
-// PLAY
-function play(c){
-
-if(Hls.isSupported()){
-let h = new Hls();
-h.loadSource(c.url);
-h.attachMedia(video);
-}else{
-video.src = c.url;
-}
-
-}
-
 </script>
 
 </body>
