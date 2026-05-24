@@ -1,0 +1,31 @@
+#EXTM3U
+
+#EXTINF:-1 group-title="Bangladesh",BTV
+https://owrcozcpy.gpcdn.net/bpk-tv/1709/output/index.m3u8
+
+#EXTINF:-1 group-title="Bangladesh",ATN Bangla
+https://tvsen5.aynaott.com/atnbangla/tracks-v1a1/mono.ts.m3u8
+
+#EXTINF:-1 group-title="Bangladesh",NTV
+https://owrcozcpy.gpcdn.net/bpk-tv/1716/output/index.m3u8
+
+#EXTINF:-1 group-title="Bangladesh",RTV
+https://tvsen5.aynaott.com/RtvHD/tracks-v1a1/mono.ts.m3u8
+
+#EXTINF:-1 group-title="News",Somoy TV
+https://owrcozcpy.gpcdn.net/bpk-tv/1702/output/index.m3u8
+
+#EXTINF:-1 group-title="News",Jamuna TV
+https://owrcozcpy.gpcdn.net/bpk-tv/1701/output/index.m3u8
+
+#EXTINF:-1 group-title="News",Channel 24
+https://owrcozcpy.gpcdn.net/bpk-tv/1703/output/index.m3u8
+
+#EXTINF:-1 group-title="News",Ekattor TV
+https://owrcozcpy.gpcdn.net/bpk-tv/1705/output/index.m3u8
+
+#EXTINF:-1 group-title="News",DBC News
+https://owrcozcpy.gpcdn.net/bpk-tv/1728/output/index.m3u8
+
+#EXTINF:-1 group-title="News",ATN News
+https://owrcozcpy.gpcdn.net/bpk-tv/1706/output/index.m3u8
