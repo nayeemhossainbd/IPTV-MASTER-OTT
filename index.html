@@ -3,112 +3,87 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>IPTV MASTER TV OS</title>
+<title>IPTV Netflix Style</title>
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
 <style>
 body{
 margin:0;
 font-family:Arial;
-background:#0a0a0a;
+background:#000;
 color:#fff;
 overflow:hidden;
 }
 
-#login{
-padding:20px;
-display:flex;
-flex-direction:column;
-gap:10px;
-}
-
-input,button{
-padding:12px;
-border:none;
-border-radius:8px;
-font-size:16px;
-}
-
-button{
-background:#2196f3;
-color:#fff;
-cursor:pointer;
-}
-
-#app{display:none}
-
-#container{
+/* MAIN LAYOUT */
+#app{
 display:flex;
 height:100vh;
 }
 
-#left{
-width:40%;
+/* LEFT SIDEBAR */
+#sidebar{
+width:30%;
+background:#111;
 display:flex;
 flex-direction:column;
-background:#111;
 }
 
 #search{
 margin:10px;
 padding:10px;
-border-radius:8px;
+border:none;
+border-radius:6px;
 }
 
-#filters{
-display:flex;
-flex-wrap:wrap;
-gap:6px;
-padding:10px;
-}
-
-.tag{
-padding:6px 10px;
-background:#222;
-border-radius:20px;
-cursor:pointer;
-font-size:13px;
-}
-
-.active{background:#2196f3}
-
-#list{
+/* CATEGORY ROWS */
+#categories{
 flex:1;
 overflow-y:auto;
 padding:10px;
-display:grid;
-grid-template-columns:repeat(3,1fr);
-gap:10px;
 }
 
-.item{
-background:#1c1c1c;
-padding:15px;
-border-radius:12px;
-cursor:pointer;
-min-height:80px;
+.category{
+margin-bottom:25px;
+}
+
+.category h3{
+margin:10px 0;
+font-size:14px;
+color:#aaa;
+}
+
+/* HORIZONTAL SCROLL ROW */
+.row{
 display:flex;
-flex-direction:column;
-justify-content:center;
+overflow-x:auto;
+gap:10px;
+padding-bottom:10px;
+scroll-behavior:smooth;
 }
 
-.item.focused{
-background:#2196f3;
+.card{
+min-width:140px;
+height:80px;
+background:#222;
+border-radius:10px;
+padding:10px;
+cursor:pointer;
+flex-shrink:0;
+transition:0.2s;
 }
 
-.star{
-color:gold;
-margin-top:8px;
+.card:hover{
+transform:scale(1.05);
+background:#333;
 }
 
-#right{
+/* RIGHT PLAYER */
+#player{
 flex:1;
 background:black;
+position:relative;
 }
 
 video{
@@ -116,183 +91,140 @@ width:100%;
 height:100%;
 }
 
+/* FOCUS STYLE (TV FEEL) */
+.focused{
+outline:2px solid red;
+transform:scale(1.1);
+}
+
+/* MOBILE */
 @media(max-width:900px){
-#container{flex-direction:column}
-#left{width:100%;height:55%}
-#list{grid-template-columns:repeat(2,1fr)}
-#right{height:45%}
+#app{flex-direction:column}
+#sidebar{width:100%;height:45%}
+#player{height:55%}
+.card{min-width:120px}
 }
 </style>
 </head>
 
 <body>
 
-<!-- LOGIN -->
-<div id="login">
-<h2>IPTV LOGIN</h2>
-<input id="email" placeholder="Email">
-<input id="pass" type="password" placeholder="Password">
-<button onclick="login()">Login</button>
-</div>
-
-<!-- APP -->
 <div id="app">
 
-<div id="container">
+<!-- LEFT -->
+<div id="sidebar">
 
-<div id="left">
-<input id="search" placeholder="Search..." onkeyup="render()">
-<div id="filters"></div>
-<div id="list"></div>
+<input id="search" placeholder="Search channels..." onkeyup="render()">
+
+<div id="categories"></div>
+
 </div>
 
-<div id="right">
+<!-- RIGHT -->
+<div id="player">
 <video id="video" controls autoplay playsinline></video>
-</div>
-
 </div>
 
 </div>
 
 <script>
 
-// FIREBASE
-const firebaseConfig = {
-apiKey: "AIzaSyA-qZC85X9Jc6Qthl3HCw6N6pGu_ZxfsFg",
-authDomain: "iptv-master-ott.firebaseapp.com",
-projectId: "iptv-master-ott",
-storageBucket: "iptv-master-ott.appspot.com",
-messagingSenderId: "821244746594",
-appId: "1:821244746594:web:3bc43f7fe1d4ccbe81ea3b"
-};
-
-firebase.initializeApp(firebaseConfig);
-
-const auth = firebase.auth();
-const db = firebase.firestore();
-
-let user = null;
-let channels = [];
-let filter = "ALL";
-let favorites = [];
-let focusIndex = 0;
-
-// PLAYLIST CDN (stable)
+// CDN M3U
 const PLAYLIST_URL = "https://cdn.jsdelivr.net/gh/nayeemhossainbd/IPTV-MASTER-OTT@main/channels.m3u";
 
-// ---------------- LOGIN ----------------
-function login(){
+let channels = [];
 
-const email = document.getElementById("email").value;
-const pass = document.getElementById("pass").value;
-
-auth.signInWithEmailAndPassword(email, pass)
-.then(u => {
-
-user = u.user.uid;
-
-document.getElementById("login").style.display = "none";
-document.getElementById("app").style.display = "block";
-
-load();
-
-})
-.catch(e => {
-alert(e.code + "\n" + e.message);
-});
-
-}
-
-// ---------------- LOAD ----------------
+// LOAD
 async function load(){
 
-try{
 let res = await fetch(PLAYLIST_URL);
 let text = await res.text();
-channels = parseM3U(text);
-}catch(e){
-alert("Playlist error");
-return;
-}
 
-buildFilters();
+channels = parseM3U(text);
+
 render();
 
 play(channels[0]);
 
 }
 
-// ---------------- PARSE M3U ----------------
+load();
+
+// PARSE M3U
 function parseM3U(data){
 let lines = data.split("\n");
 let arr = [];
-let name="", group="General";
+let name="", group="Live TV";
 
 for(let l of lines){
+
 l = l.trim();
 
 if(l.startsWith("#EXTINF")){
 name = l.split(",")[1] || "Unknown";
 let g = l.match(/group-title="(.*?)"/);
-group = g ? g[1] : "General";
+group = g ? g[1] : "Live TV";
 }
+
 else if(l && !l.startsWith("#")){
 arr.push({name, group, url:l});
 }
+
 }
 
 return arr;
 }
 
-// ---------------- UI ----------------
-function buildFilters(){
-let f = ["ALL", ...new Set(channels.map(c=>c.group))];
-
-filters.innerHTML = "";
-
-f.forEach(x=>{
-let d = document.createElement("div");
-d.className = "tag" + (filter==x?" active":"");
-d.innerText = x;
-
-d.onclick = ()=>{
-filter = x;
-buildFilters();
-render();
-};
-
-filters.appendChild(d);
-});
-}
-
-// ---------------- RENDER ----------------
+// RENDER NETFLIX STYLE
 function render(){
 
-list.innerHTML = "";
+categories.innerHTML = "";
 
-let s = document.getElementById("search").value.toLowerCase();
+let s = search.value.toLowerCase();
 
-channels
-.filter(c => (filter=="ALL" || c.group==filter) && c.name.toLowerCase().includes(s))
-.forEach((c,i)=>{
+let groups = {};
 
-let div = document.createElement("div");
-div.className = "item";
+channels.forEach(c=>{
+if(!c.name.toLowerCase().includes(s)) return;
 
-div.innerHTML = `
-<b>${c.name}</b>
-<div style="font-size:12px;opacity:0.7">${c.group}</div>
+if(!groups[c.group]) groups[c.group]=[];
+groups[c.group].push(c);
+});
+
+for(let g in groups){
+
+let cat = document.createElement("div");
+cat.className="category";
+
+cat.innerHTML = `<h3>${g}</h3>`;
+
+let row = document.createElement("div");
+row.className="row";
+
+groups[g].forEach(c=>{
+
+let card = document.createElement("div");
+card.className="card";
+
+card.innerHTML = `
+<div style="font-weight:bold;font-size:13px">${c.name}</div>
+<div style="font-size:11px;opacity:0.6">${c.group}</div>
 `;
 
-div.onclick = ()=> play(c);
+card.onclick = ()=> play(c);
 
-list.appendChild(div);
+row.appendChild(card);
 
 });
 
+cat.appendChild(row);
+categories.appendChild(cat);
+
 }
 
-// ---------------- PLAY ----------------
+}
+
+// PLAY
 function play(c){
 
 if(Hls.isSupported()){
